@@ -89,6 +89,7 @@ class PvsStudioCheckTool(CheckToolBase):  # pylint: disable=too-many-instance-at
         if result["returncode"] != 0:
             click.echo(result["err"])
             self._bad_input = True
+            click.echo("Error: Failed to demangle report")
 
         return result["err"]
 
@@ -98,6 +99,7 @@ class PvsStudioCheckTool(CheckToolBase):  # pylint: disable=too-many-instance-at
         report = self._demangle_report(output_file)
         if not report:
             self._bad_input = True
+            click.echo("Warning: Empty scan report")
             return []
 
         try:
@@ -105,6 +107,7 @@ class PvsStudioCheckTool(CheckToolBase):  # pylint: disable=too-many-instance-at
         except:  # pylint: disable=bare-except
             click.echo("Error: Couldn't decode generated report!")
             self._bad_input = True
+            click.echo("Error: Couldn't decode generated report!")
             return []
 
         for table in defects_data.iter("PVS-Studio_Analysis_Log"):
@@ -192,11 +195,14 @@ class PvsStudioCheckTool(CheckToolBase):  # pylint: disable=too-many-instance-at
             cmd.insert(1, "-xc++")
 
         result = proc.exec_command(" ".join(cmd), shell=True)
-        if result["returncode"] != 0 or result["err"]:
+        if result["returncode"] != 0:
             if self.options.get("verbose"):
                 click.echo(" ".join(cmd))
             click.echo(result["err"])
             self._bad_input = True
+            click.echo("Error: Failed to preprocess file '%s'" % src_file)
+        if self.options.get("verbose") and result["err"]:
+            click.echo(result["err"])
 
     def clean_up(self):
         if os.path.isdir(self._tmp_dir):
@@ -215,13 +221,15 @@ class PvsStudioCheckTool(CheckToolBase):  # pylint: disable=too-many-instance-at
                 click.echo(" ".join(cmd))
             if not cmd:
                 self._bad_input = True
+                click.echo("Error: Bad PVS-Studio command")
                 continue
 
             result = proc.exec_command(cmd)
             # pylint: disable=unsupported-membership-test
-            if result["returncode"] != 0 or "License was not entered" in result["err"]:
+            if result["returncode"] != 0 or "license" in result["err"].lower():
                 self._bad_input = True
                 click.echo(result["err"])
+                click.echo("Error: Failed to scan '%s'" % src_file)
                 continue
 
             self._process_defects(self.parse_defects(self._tmp_output_file))
