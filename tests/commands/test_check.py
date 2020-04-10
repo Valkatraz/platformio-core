@@ -383,3 +383,21 @@ check_tool = pvs-studio
     assert errors != 0
     assert warnings != 0
     assert style == 0
+
+def test_cppcheck_embedded_platform(clirunner, tmpdir):
+    config = """
+[env:test]
+platform = espressif8266
+board = d1
+framework = arduino
+"""
+
+    code = "#include <Arduino.h>\n" + TEST_CODE
+    tmpdir.join("platformio.ini").write(config)
+    tmpdir.mkdir("src").join("main.cpp").write(code)
+  
+    result = clirunner.invoke(cmd_check, ["--project-dir", str(tmpdir)])
+    errors, warnings, style = count_defects(result.output)
+
+    assert result.exit_code == 0
+    assert errors + warnings + style == EXPECTED_DEFECTS

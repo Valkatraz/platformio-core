@@ -83,6 +83,8 @@ class CppcheckCheckTool(CheckToolBase):
             tool_path,
             "--error-exitcode=1",
             "--verbose" if self.options.get("verbose") else "--quiet",
+            # continue checking even if an error is found in external headers
+            "--force",
         ]
 
         cmd.append(
@@ -111,11 +113,16 @@ class CppcheckCheckTool(CheckToolBase):
             if self.get_source_language() == "c++":
                 cmd.append("--language=c++")
 
-                if not self.is_flag_set("--std", flags):
-                    for f in self.cxx_flags + self.cc_flags:
-                        if "-std" in f:
-                            # Standards with GNU extensions are not allowed
-                            cmd.append("-" + f.replace("gnu", "c"))
+        if not self.is_flag_set("--std", flags):
+            build_flags = (
+                self.cxx_flags
+                if self.get_source_language() == "c++"
+                else self.cc_flags
+            )
+            for f in build_flags:
+                if "-std" in f:
+                    # Standards with GNU extensions are not allowed
+                    cmd.append("-" + f.replace("gnu", "c"))
 
         cmd.extend(["-D%s" % d for d in self.cpp_defines + self.toolchain_defines])
         cmd.extend(flags)
